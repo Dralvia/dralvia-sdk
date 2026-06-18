@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=65", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dralvia-sdk"
+version = "0.1.0"
+description = "Official lightweight Python client for the Dralvia security API."
+authors = [{ name = "Dralvia" }]
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["dralvia", "security", "phishing", "url-scan", "email-security", "swg", "sdk"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = [
+    "requests>=2.31"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.1", "ruff>=0.4", "build>=1.2"]
+
+[project.urls]
+Homepage = "https://dralvia.tech/docs/sdks/python"
+Documentation = "https://dralvia.tech/docs/sdks/python"
+Support = "https://dralvia.tech/docs/tenant/developer"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dralvia_sdk = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"

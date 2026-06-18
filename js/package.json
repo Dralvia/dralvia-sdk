@@ -1,0 +1,57 @@
+{
+  "name": "@dralvia/sdk",
+  "version": "0.1.0",
+  "description": "Official lightweight JavaScript client for the Dralvia security API.",
+  "homepage": "https://dralvia.tech/docs/sdks/javascript",
+  "license": "MIT",
+  "author": "Dralvia",
+  "type": "module",
+  "main": "src/client.js",
+  "module": "src/client.js",
+  "types": "types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./src/client.js",
+      "default": "./src/client.js"
+    }
+  },
+  "files": [
+    "src",
+    "types",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "dralvia",
+    "security",
+    "phishing",
+    "url-scan",
+    "email-security",
+    "swg",
+    "sdk"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint .",
+    "build": "node --check src/client.js"
+  },
+  "peerDependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "peerDependenciesMeta": {
+    "node-fetch": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

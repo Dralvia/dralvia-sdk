@@ -1,0 +1,17 @@
+# Node
+node_modules/
+js/node_modules/
+*.tgz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+python/dist/
+python/build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editor
+.DS_Store
