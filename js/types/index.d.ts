@@ -41,10 +41,12 @@ export class DralviaNotImplementedError extends DralviaError {
   feature: string;
 }
 
-/** Reserved namespace for AI-agent guardrail checks. Not available yet. */
+/** AI-agent pre-action guardrail checks. */
 export class AgentNamespace {
-  checkAction(action?: unknown): Promise<never>;
-  checkContent(content?: unknown): Promise<never>;
+  /** Pre-action safety verdict for a URL the agent is about to act on. */
+  checkAction(action: JsonObject | string): Promise<JsonObject>;
+  /** Prompt-injection screen for content the agent just retrieved. */
+  checkContent(content: JsonObject | string): Promise<JsonObject>;
 }
 
 export class DralviaClient {

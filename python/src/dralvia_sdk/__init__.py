@@ -33,6 +33,7 @@ __version__ = "0.1.0"
 
 DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant"
 DEFAULT_TIMEOUT_SECONDS = 15.0
+API_VERSION_PREFIX = "/v1"
 
 
 class DralviaError(Exception):
@@ -74,19 +75,41 @@ class DralviaNotImplementedError(DralviaError):
 
 
 class AgentNamespace:
-    """Reserved namespace for AI-agent guardrail checks.
+    """AI-agent pre-action guardrail checks.
 
-    The ``check_action`` / ``check_content`` endpoints do not exist on the API
-    yet. These methods intentionally raise so integrators can wire the call
-    site today and have it light up once the endpoints ship, without the SDK
-    pretending to call something that is not there.
+    ``check_action`` asks Dralvia for a safety verdict before the agent acts on
+    a URL (visit, enter credentials, pay, download, connect a tool, sign a
+    transaction). ``check_content`` screens content the agent just retrieved
+    for prompt-injection / tool-hijack patterns.
     """
 
-    def check_action(self, action: Any) -> Any:
-        raise DralviaNotImplementedError("dralvia.agent.check_action")
+    def __init__(self, client: "DralviaClient"):
+        self._client = client
 
-    def check_content(self, content: Any) -> Any:
-        raise DralviaNotImplementedError("dralvia.agent.check_content")
+    def check_action(self, action: Any) -> Dict[str, Any]:
+        """Pre-action safety verdict.
+
+        ``action`` is a mapping such as
+        ``{"url": "https://...", "intent": "enter_credentials"}``. A bare URL
+        string is also accepted and treated as a ``visit`` intent.
+        """
+        if isinstance(action, str):
+            body: Dict[str, Any] = {"url": action}
+        else:
+            body = dict(action or {})
+        return self._client._request("POST", "/agent/check-action", json=body)
+
+    def check_content(self, content: Any) -> Dict[str, Any]:
+        """Prompt-injection screen for retrieved content.
+
+        ``content`` is the page text / tool output string, or a mapping such as
+        ``{"content": "...", "url": "https://..."}``.
+        """
+        if isinstance(content, str):
+            body: Dict[str, Any] = {"content": content}
+        else:
+            body = dict(content or {})
+        return self._client._request("POST", "/agent/check-content", json=body)
 
 
 class DralviaClient:
@@ -113,48 +136,48 @@ class DralviaClient:
         self.bearer_token = bearer_token
         self.timeout = timeout
         self.session = session or requests.Session()
-        self.agent = AgentNamespace()
+        self.agent = AgentNamespace(self)
 
     # --- Scanning -----------------------------------------------------------
 
     def scan_url(self, url: str, **payload: Any) -> Dict[str, Any]:
         """Scan a single URL."""
-        return self._request("POST", "/scan", json={"url": url, **payload})
+        return self._request("POST", f"{API_VERSION_PREFIX}/scan", json={"url": url, **payload})
 
     def unified_scan(self, input_value: str, **payload: Any) -> Dict[str, Any]:
         """Unified scan helper. Accepts a URL, domain, email, or other input."""
-        return self._request("POST", "/unified/scan", json={"input": input_value, **payload})
+        return self._request("POST", f"{API_VERSION_PREFIX}/unified/scan", json={"input": input_value, **payload})
 
     def swg_evaluate(self, url: str, **payload: Any) -> Dict[str, Any]:
         """Web Access Protection (SWG) evaluation for a destination URL."""
-        return self._request("POST", "/swg/evaluate", json={"url": url, **payload})
+        return self._request("POST", f"{API_VERSION_PREFIX}/swg/evaluate", json={"url": url, **payload})
 
     def email_protect(self, **payload: Any) -> Dict[str, Any]:
         """Email-protection scoring helper for an inbound message."""
-        return self._request("POST", "/email/protect", json=payload)
+        return self._request("POST", f"{API_VERSION_PREFIX}/email/protect", json=payload)
 
     def scan_repo_archive(self, file_name: str, file_bytes: bytes, **payload: Any) -> Dict[str, Any]:
         """Upload a repository archive (zip bytes) for a repo scan."""
         files = {"file": (file_name, file_bytes, "application/zip")}
-        return self._request("POST", "/repo/scan/upload", data=payload or None, files=files)
+        return self._request("POST", f"{API_VERSION_PREFIX}/repo/scan/upload", data=payload or None, files=files)
 
     # --- Webhooks -----------------------------------------------------------
 
     def list_webhooks(self) -> Dict[str, Any]:
         """List the workspace's registered webhooks."""
-        return self._request("GET", "/pro/webhooks")
+        return self._request("GET", f"{API_VERSION_PREFIX}/pro/webhooks")
 
     def create_webhook(self, **payload: Any) -> Dict[str, Any]:
         """Register a new webhook."""
-        return self._request("POST", "/pro/webhooks", json=payload)
+        return self._request("POST", f"{API_VERSION_PREFIX}/pro/webhooks", json=payload)
 
     def delete_webhook(self, webhook_id: Any) -> Dict[str, Any]:
         """Delete a webhook by id."""
-        return self._request("DELETE", f"/pro/webhooks/{webhook_id}")
+        return self._request("DELETE", f"{API_VERSION_PREFIX}/pro/webhooks/{webhook_id}")
 
     def test_webhook(self, webhook_id: Any) -> Dict[str, Any]:
         """Send a test delivery to a webhook by id."""
-        return self._request("POST", f"/pro/webhooks/{webhook_id}/test")
+        return self._request("POST", f"{API_VERSION_PREFIX}/pro/webhooks/{webhook_id}/test")
 
     # --- Internals ----------------------------------------------------------
 

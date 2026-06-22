@@ -11,6 +11,7 @@
 
 export const DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant";
 export const DEFAULT_TIMEOUT_MS = 15000;
+const API_VERSION_PREFIX = "/v1";
 
 /** Base class for every error the SDK throws. */
 class DralviaError extends Error {
@@ -86,20 +87,36 @@ function firstDefined(...values) {
 }
 
 /**
- * Reserved namespace for AI-agent guardrail checks.
+ * AI-agent pre-action guardrail checks.
  *
- * The `checkAction` / `checkContent` endpoints do not exist on the API yet.
- * These methods intentionally throw so that integrators can wire the call
- * site today and have it light up once the endpoints ship, without the SDK
- * pretending to call something that is not there.
+ * `checkAction` asks Dralvia for a safety verdict before the agent acts on a
+ * URL (visit, enter credentials, pay, download, connect a tool, sign a
+ * transaction). `checkContent` screens content the agent just retrieved for
+ * prompt-injection / tool-hijack patterns.
  */
 class AgentNamespace {
-  async checkAction(_action) {
-    throw new DralviaNotImplementedError("dralvia.agent.checkAction");
+  constructor(client) {
+    this._client = client;
   }
 
-  async checkContent(_content) {
-    throw new DralviaNotImplementedError("dralvia.agent.checkContent");
+  /**
+   * Pre-action safety verdict.
+   * @param {object|string} action `{ url, intent }` mapping, or a bare URL
+   *   string (treated as a `visit` intent).
+   */
+  async checkAction(action) {
+    const body = typeof action === "string" ? { url: action } : { ...(action || {}) };
+    return this._client._requestJson("POST", "/agent/check-action", body);
+  }
+
+  /**
+   * Prompt-injection screen for retrieved content.
+   * @param {object|string} content The page text / tool output string, or a
+   *   `{ content, url }` mapping.
+   */
+  async checkContent(content) {
+    const body = typeof content === "string" ? { content } : { ...(content || {}) };
+    return this._client._requestJson("POST", "/agent/check-content", body);
   }
 }
 
@@ -130,29 +147,29 @@ class DralviaClient {
     this.baseUrl = String(baseUrl).replace(/\/+$/, "");
     this.bearerToken = options.bearerToken;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    this.agent = new AgentNamespace();
+    this.agent = new AgentNamespace(this);
   }
 
   // --- Scanning -----------------------------------------------------------
 
   /** Scan a single URL. */
   async scanUrl(url, payload = {}) {
-    return this._requestJson("POST", "/scan", { url, ...payload });
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/scan`, { url, ...payload });
   }
 
   /** Unified scan helper. Accepts a URL, domain, email, or other supported input. */
   async unifiedScan(input, payload = {}) {
-    return this._requestJson("POST", "/unified/scan", { input, ...payload });
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/unified/scan`, { input, ...payload });
   }
 
   /** Web Access Protection (SWG) evaluation for a destination URL. */
   async evaluateSwg(url, payload = {}) {
-    return this._requestJson("POST", "/swg/evaluate", { url, ...payload });
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/swg/evaluate`, { url, ...payload });
   }
 
   /** Email-protection scoring helper for an inbound message. */
   async protectEmail(payload) {
-    return this._requestJson("POST", "/email/protect", payload);
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/email/protect`, payload);
   }
 
   /** Upload a repository archive (zip bytes / Blob) for a repo scan. */
@@ -165,29 +182,29 @@ class DralviaClient {
         form.append(key, String(value));
       }
     });
-    return this._requestForm("POST", "/repo/scan/upload", form);
+    return this._requestForm("POST", `${API_VERSION_PREFIX}/repo/scan/upload`, form);
   }
 
   // --- Webhooks -----------------------------------------------------------
 
   /** List the workspace's registered webhooks. */
   async listWebhooks() {
-    return this._requestJson("GET", "/pro/webhooks");
+    return this._requestJson("GET", `${API_VERSION_PREFIX}/pro/webhooks`);
   }
 
   /** Register a new webhook. */
   async createWebhook(payload) {
-    return this._requestJson("POST", "/pro/webhooks", payload);
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/pro/webhooks`, payload);
   }
 
   /** Delete a webhook by id. */
   async deleteWebhook(webhookId) {
-    return this._requestJson("DELETE", `/pro/webhooks/${encodeURIComponent(webhookId)}`);
+    return this._requestJson("DELETE", `${API_VERSION_PREFIX}/pro/webhooks/${encodeURIComponent(webhookId)}`);
   }
 
   /** Send a test delivery to a webhook by id. */
   async testWebhook(webhookId) {
-    return this._requestJson("POST", `/pro/webhooks/${encodeURIComponent(webhookId)}/test`);
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/pro/webhooks/${encodeURIComponent(webhookId)}/test`);
   }
 
   // --- Internals ----------------------------------------------------------

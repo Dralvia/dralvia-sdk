@@ -26,6 +26,9 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 ### Changed
 - JavaScript SDK now has zero required runtime dependencies on Node.js 18+
   (`node-fetch` is an optional peer dependency for older Node).
+- Python and JavaScript helpers now call the stable `/v1` workspace API paths
+  for scan, unified scan, SWG evaluate, email protect, repo upload, and webhook
+  helpers.
 
 ## [0.1.0]
 
