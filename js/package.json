@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "Official lightweight JavaScript client for the Dralvia security API.",
   "homepage": "https://dralvia.tech/docs/sdks/javascript",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dralvia/dralvia-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Dralvia/dralvia-sdk/issues"
+  },
   "license": "MIT",
   "author": "Dralvia",
   "type": "module",

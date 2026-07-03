@@ -32,6 +32,7 @@ dev = ["pytest>=8.1", "ruff>=0.4", "build>=1.2"]
 [project.urls]
 Homepage = "https://dralvia.tech/docs/sdks/python"
 Documentation = "https://dralvia.tech/docs/sdks/python"
+Repository = "https://github.com/Dralvia/dralvia-sdk"
 Support = "https://dralvia.tech/docs/tenant/developer"
 
 [tool.setuptools.packages.find]

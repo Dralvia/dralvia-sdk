@@ -6,7 +6,16 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-07-02
+
+Initial public release of both packages.
+
 ### Added
+- Core helpers from the first repo-local iteration: `scanUrl`, `evaluateSwg`,
+  `protectEmail`, `unifiedScan`, `scanRepoArchive`, webhook list/create, and a
+  basic `DralviaApiError`.
 - Default base URL (`https://dralvia.tech/api/tenant`) so a client can be
   constructed with only an API key.
 - API key and base URL fall back to `DRALVIA_API_KEY` / `DRALVIA_BASE_URL`
@@ -29,9 +38,3 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 - Python and JavaScript helpers now call the stable `/v1` workspace API paths
   for scan, unified scan, SWG evaluate, email protect, repo upload, and webhook
   helpers.
-
-## [0.1.0]
-
-- Initial repo-local SDKs: `scanUrl`, `evaluateSwg`, `protectEmail`,
-  `unifiedScan`, `scanRepoArchive`, webhook list/create, and a basic
-  `DralviaApiError`.
