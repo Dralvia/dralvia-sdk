@@ -19,9 +19,15 @@ from your own scripts, backend jobs, or CI.
 - **Evaluate a destination** for Web Access Protection / SWG policy
   (`swg_evaluate`).
 - **Score an inbound email** message (`email_protect`).
-- **Scan a repository archive** (`scan_repo_archive`).
+- **Scan a repository archive** (`scan_repo_archive`), wait for it to finish
+  (`wait_for_repo_scan`), and read the result: full scan (`get_repo_scan`), CI
+  gate decision (`get_repo_scan_ci_gate`), SARIF or JSON export
+  (`export_repo_scan`), signed export manifest
+  (`get_repo_scan_export_manifest`), and triage decisions
+  (`get_repo_scan_triage`).
+- **Read workspace usage** and plan limits (`get_usage_summary`).
 - **Manage webhooks** for scan events (`list_webhooks`, `create_webhook`,
-  `test_webhook`, `delete_webhook`).
+  `test_webhook`, `delete_webhook`). Needs a key with the `webhooks` permission.
 
 This SDK covers the core scanning surface of the Dralvia API. Some product areas
 are managed in the Dralvia app and are not exposed here. See the
@@ -54,6 +60,12 @@ the package is published.
 
 The SDK sends the key as the `X-API-KEY` header on every request and refuses to
 construct a client without one.
+
+Every key can scan and read its own workspace's results and usage. Webhook
+management needs the **Manage webhooks** permission: tick it under *Additional
+permissions* when you generate or rotate the key. A key without a permission a
+call needs gets `DralviaApiError` with `status_code == 403` and
+`required_scope` naming the permission.
 
 ## Install
 
@@ -102,11 +114,21 @@ client.email_protect(
     html="<p>See attached</p>",
 )
 
-# Repository archive scan (zip bytes).
+# Repository archive scan (zip bytes), then wait and gate on the result.
 with open("repo.zip", "rb") as fh:
-    repo = client.scan_repo_archive("repo.zip", fh.read(), async_mode="1")
+    repo = client.scan_repo_archive("repo.zip", fh.read())
+scan = client.wait_for_repo_scan(repo["id"])          # polls; default 10 min timeout
+gate = client.get_repo_scan_ci_gate(repo["id"])       # gate["decision"]: pass / review / fail
+strict = client.get_repo_scan_ci_gate(repo["id"], profile="fail_closed")
+sarif = client.export_repo_scan(repo["id"], format="sarif")
+manifest = client.get_repo_scan_export_manifest(repo["id"])
+triage = client.get_repo_scan_triage(repo["id"])
 
-# Webhooks.
+# Usage and plan limits.
+usage = client.get_usage_summary()
+
+# Webhooks (needs the `webhooks` permission on the key).
+
 hooks = client.list_webhooks()
 client.create_webhook(url="https://your-app/webhooks/dralvia", events=["scan.completed"])
 client.test_webhook(hook_id)
@@ -122,7 +144,7 @@ branch cleanly:
 | --- | --- |
 | `DralviaConfigError` | Missing API key. |
 | `DralviaTimeoutError` | Request exceeded `timeout` (default 15s). |
-| `DralviaApiError` | Non-2xx response. Carries `status_code`, `payload`, `request_url`, `request_id`. |
+| `DralviaApiError` | Non-2xx response. Carries `status_code`, `payload`, `request_url`, `request_id`, and `error_code`, `reason`, `required_scope` when the API sends them. |
 | `DralviaNotImplementedError` | A reserved future feature was called (see below). |
 
 ```python
@@ -131,6 +153,8 @@ from dralvia_sdk import DralviaApiError
 try:
     client.scan_url("https://example.com")
 except DralviaApiError as err:
+    if err.required_scope:
+        print(f"API key needs the {err.required_scope} permission")
     print(err.status_code, err.request_id, err.payload)
 ```
 
@@ -153,7 +177,8 @@ if screen["injection_detected"]:
 ## Examples
 
 See [`examples/`](./examples) for runnable scripts: `scan_url.py`,
-`unified_scan.py`, `email_protect.py`, and `repo_scan.py`.
+`unified_scan.py`, `email_protect.py`, and `repo_scan.py` (upload, wait, CI gate,
+optional SARIF file, non-zero exit when the gate blocks).
 
 ## Tests
 

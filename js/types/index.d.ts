@@ -35,6 +35,19 @@ export class DralviaApiError extends DralviaError {
   payload: JsonObject;
   requestUrl: string;
   requestId?: string;
+  /** Machine-readable error code, e.g. "forbidden" or "not_found". */
+  code?: string;
+  /** Why the request was refused, e.g. "api_key_scope_missing". */
+  reason?: string;
+  /** The API key permission this route needs, when a key lacks it. */
+  requiredScope?: string;
+}
+
+export interface WaitForRepoScanOptions {
+  /** Give up after this many milliseconds. Defaults to 600000. */
+  timeoutMs?: number;
+  /** Delay between polls in milliseconds. Defaults to 5000. */
+  pollIntervalMs?: number;
 }
 
 export class DralviaNotImplementedError extends DralviaError {
@@ -68,6 +81,16 @@ export class DralviaClient {
     payload?: JsonObject
   ): Promise<JsonObject>;
 
+  getRepoScan(scanId: string | number): Promise<JsonObject>;
+  waitForRepoScan(scanId: string | number, options?: WaitForRepoScanOptions): Promise<JsonObject>;
+  getRepoScanCiGate(scanId: string | number, options?: { profile?: string }): Promise<JsonObject>;
+  exportRepoScan(scanId: string | number, options?: { format?: string }): Promise<JsonObject>;
+  getRepoScanExportManifest(scanId: string | number): Promise<JsonObject>;
+  getRepoScanTriage(scanId: string | number): Promise<JsonObject>;
+
+  getUsageSummary(): Promise<JsonObject>;
+
+  /** Needs an API key with the `webhooks` permission. */
   listWebhooks(): Promise<JsonObject>;
   createWebhook(payload: JsonObject): Promise<JsonObject>;
   deleteWebhook(webhookId: string | number): Promise<JsonObject>;

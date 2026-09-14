@@ -22,9 +22,14 @@ from your own backend, worker, or CI.
 - **Evaluate a destination** for Web Access Protection / SWG policy
   (`evaluateSwg`).
 - **Score an inbound email** message (`protectEmail`).
-- **Scan a repository archive** (`scanRepoArchive`).
+- **Scan a repository archive** (`scanRepoArchive`), wait for it to finish
+  (`waitForRepoScan`), and read the result: full scan (`getRepoScan`), CI gate
+  decision (`getRepoScanCiGate`), SARIF or JSON export (`exportRepoScan`),
+  signed export manifest (`getRepoScanExportManifest`), and triage decisions
+  (`getRepoScanTriage`).
+- **Read workspace usage** and plan limits (`getUsageSummary`).
 - **Manage webhooks** for scan events (`listWebhooks`, `createWebhook`,
-  `testWebhook`, `deleteWebhook`).
+  `testWebhook`, `deleteWebhook`). Needs a key with the `webhooks` permission.
 
 This SDK covers the core scanning surface of the Dralvia API. Some product areas
 are managed in the Dralvia app and are not exposed here. See the
@@ -104,9 +109,18 @@ await client.protectEmail({
 });
 
 // Repository archive scan (zip bytes / Blob).
-const repo = await client.scanRepoArchive("repo.zip", zipBytes, { async: "1" });
+const repo = await client.scanRepoArchive("repo.zip", zipBytes);
+const scan = await client.waitForRepoScan(repo.id); // polls; default 10 min timeout
+const gate = await client.getRepoScanCiGate(repo.id); // gate.decision: pass / review / fail
+const strict = await client.getRepoScanCiGate(repo.id, { profile: "fail_closed" });
+const sarif = await client.exportRepoScan(repo.id, { format: "sarif" });
+const manifest = await client.getRepoScanExportManifest(repo.id);
+const triage = await client.getRepoScanTriage(repo.id);
 
-// Webhooks.
+// Usage and plan limits.
+const usage = await client.getUsageSummary();
+
+// Webhooks (needs the `webhooks` permission on the key).
 const hooks = await client.listWebhooks();
 await client.createWebhook({ url: "https://your-app/webhooks/dralvia", events: ["scan.completed"] });
 await client.testWebhook(hookId);
@@ -122,7 +136,7 @@ cleanly:
 | --- | --- |
 | `DralviaConfigError` | Missing API key or no available `fetch`. |
 | `DralviaTimeoutError` | Request exceeded `timeoutMs` (default 15000). |
-| `DralviaApiError` | Non-2xx response. Carries `status`, `payload`, `requestUrl`, `requestId`. |
+| `DralviaApiError` | Non-2xx response. Carries `status`, `payload`, `requestUrl`, `requestId`, and `code`, `reason`, `requiredScope` when the API sends them. |
 
 ```js
 import { DralviaApiError } from "@dralvia/sdk";

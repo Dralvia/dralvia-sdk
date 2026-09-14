@@ -12,6 +12,10 @@
 export const DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant";
 export const DEFAULT_TIMEOUT_MS = 15000;
 const API_VERSION_PREFIX = "/v1";
+const DEFAULT_REPO_SCAN_WAIT_MS = 600000;
+const DEFAULT_REPO_SCAN_POLL_MS = 5000;
+// A repository scan in one of these states will not change any more.
+const REPO_SCAN_TERMINAL_STATUSES = new Set(["completed", "done", "failed", "dead_letter"]);
 
 /** Base class for every error the SDK throws. */
 class DralviaError extends Error {
@@ -42,14 +46,26 @@ class DralviaTimeoutError extends DralviaError {
 /** Thrown on any non-2xx HTTP response. Carries status, body, and request URL. */
 class DralviaApiError extends DralviaError {
   constructor(status, payload, requestUrl) {
-    super(`Dralvia API error (${status})`);
+    const body = payload && typeof payload === "object" ? payload : {};
+    let message = `Dralvia API error (${status})`;
+    if (body.required_scope) {
+      message += `: API key is missing the \`${body.required_scope}\` permission`;
+    } else if (body.error) {
+      message += `: ${body.error}`;
+    }
+    super(message);
     this.name = "DralviaApiError";
     this.status = status;
-    this.payload = payload || {};
+    this.payload = body;
     this.requestUrl = requestUrl;
     // Surface a request id when the API returns one; useful for support.
-    this.requestId =
-      (payload && (payload.request_id || payload.requestId)) || undefined;
+    this.requestId = body.request_id || body.requestId || undefined;
+    /** Machine-readable error code, e.g. "forbidden" or "not_found". */
+    this.code = body.error || undefined;
+    /** Why the request was refused, e.g. "api_key_scope_missing". */
+    this.reason = body.reason || undefined;
+    /** The API key permission this route needs, when a key lacks it. */
+    this.requiredScope = body.required_scope || undefined;
   }
 }
 
@@ -80,6 +96,21 @@ async function ensureFetch() {
         "'node-fetch' package in your project."
     );
   }
+}
+
+/** Encode an id as a single path segment so it cannot change the route. */
+function pathId(value) {
+  return encodeURIComponent(String(value));
+}
+
+function withQuery(path, params) {
+  const entries = Object.entries(params || {}).filter(
+    ([, value]) => value !== undefined && value !== null && value !== ""
+  );
+  if (!entries.length) {
+    return path;
+  }
+  return `${path}?${new URLSearchParams(entries.map(([k, v]) => [k, String(v)])).toString()}`;
 }
 
 function firstDefined(...values) {
@@ -185,7 +216,87 @@ class DralviaClient {
     return this._requestForm("POST", `${API_VERSION_PREFIX}/repo/scan/upload`, form);
   }
 
+  // --- Repository scan results ---------------------------------------------
+
+  /** Fetch a repository scan: status, risk, findings, and summaries. */
+  async getRepoScan(scanId) {
+    return this._requestJson("GET", `${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}`);
+  }
+
+  /**
+   * Poll a repository scan until it finishes and resolve with the final result.
+   * Resolves once `status` is terminal (completed, done, failed, dead_letter);
+   * check `status` before trusting the result. Rejects with DralviaTimeoutError
+   * if the scan is still running after `timeoutMs`.
+   * @param {string|number} scanId
+   * @param {object} [options]
+   * @param {number} [options.timeoutMs] Defaults to 600000 (10 minutes).
+   * @param {number} [options.pollIntervalMs] Defaults to 5000.
+   */
+  async waitForRepoScan(scanId, options = {}) {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_REPO_SCAN_WAIT_MS;
+    const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_REPO_SCAN_POLL_MS;
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const scan = await this.getRepoScan(scanId);
+      if (REPO_SCAN_TERMINAL_STATUSES.has(String((scan && scan.status) || "").toLowerCase())) {
+        return scan;
+      }
+      if (Date.now() + pollIntervalMs > deadline) {
+        throw new DralviaTimeoutError(
+          `${this.baseUrl}${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}`,
+          timeoutMs
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+  }
+
+  /**
+   * CI gate decision for a scan (pass / review / fail).
+   * @param {string|number} scanId
+   * @param {object} [options]
+   * @param {string} [options.profile] Evaluate under another policy, e.g. "advisory", "balanced", "fail_closed".
+   */
+  async getRepoScanCiGate(scanId, options = {}) {
+    return this._requestJson(
+      "GET",
+      withQuery(`${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}/ci-gate`, { profile: options.profile })
+    );
+  }
+
+  /**
+   * Export a scan, e.g. `{ format: "sarif" }` for code-scanning upload. An
+   * unsupported format rejects with DralviaApiError whose payload lists the
+   * `supported` formats.
+   */
+  async exportRepoScan(scanId, options = {}) {
+    return this._requestJson(
+      "GET",
+      withQuery(`${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}/export`, { format: options.format || "json" })
+    );
+  }
+
+  /** Signed manifest listing every export artifact of a scan and its digest. */
+  async getRepoScanExportManifest(scanId) {
+    return this._requestJson("GET", `${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}/export/manifest`);
+  }
+
+  /** Review decisions and suppressions recorded against a scan's findings. */
+  async getRepoScanTriage(scanId) {
+    return this._requestJson("GET", `${API_VERSION_PREFIX}/repo/scan/${pathId(scanId)}/triage`);
+  }
+
+  // --- Usage ----------------------------------------------------------------
+
+  /** Scan counts, plan limits, and the current billing period for the workspace. */
+  async getUsageSummary() {
+    return this._requestJson("GET", `${API_VERSION_PREFIX}/usage/summary`);
+  }
+
   // --- Webhooks -----------------------------------------------------------
+  // Webhook management needs an API key created or rotated with the
+  // `webhooks` permission; other keys get DralviaApiError 403.
 
   /** List the workspace's registered webhooks. */
   async listWebhooks() {
@@ -199,12 +310,12 @@ class DralviaClient {
 
   /** Delete a webhook by id. */
   async deleteWebhook(webhookId) {
-    return this._requestJson("DELETE", `${API_VERSION_PREFIX}/pro/webhooks/${encodeURIComponent(webhookId)}`);
+    return this._requestJson("DELETE", `${API_VERSION_PREFIX}/pro/webhooks/${pathId(webhookId)}`);
   }
 
   /** Send a test delivery to a webhook by id. */
   async testWebhook(webhookId) {
-    return this._requestJson("POST", `${API_VERSION_PREFIX}/pro/webhooks/${encodeURIComponent(webhookId)}/test`);
+    return this._requestJson("POST", `${API_VERSION_PREFIX}/pro/webhooks/${pathId(webhookId)}/test`);
   }
 
   // --- Internals ----------------------------------------------------------

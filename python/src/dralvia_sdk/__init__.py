@@ -12,7 +12,9 @@ embed any Dralvia backend, scanner, rule, or dataset logic.
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 import requests
 
@@ -34,6 +36,10 @@ __version__ = "0.1.0"
 DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant"
 DEFAULT_TIMEOUT_SECONDS = 15.0
 API_VERSION_PREFIX = "/v1"
+DEFAULT_REPO_SCAN_WAIT_SECONDS = 600.0
+DEFAULT_REPO_SCAN_POLL_SECONDS = 5.0
+# A repository scan in one of these states will not change any more.
+REPO_SCAN_TERMINAL_STATUSES = frozenset({"completed", "done", "failed", "dead_letter"})
 
 
 class DralviaError(Exception):
@@ -57,11 +63,23 @@ class DralviaApiError(DralviaError):
     """Raised on any non-2xx HTTP response."""
 
     def __init__(self, status_code: int, payload: Optional[Dict[str, Any]], request_url: str):
-        super().__init__(f"Dralvia API error {status_code}")
+        payload = payload if isinstance(payload, dict) else {}
         self.status_code = status_code
-        self.payload: Dict[str, Any] = payload or {}
+        self.payload: Dict[str, Any] = payload
         self.request_url = request_url
-        self.request_id = self.payload.get("request_id") or self.payload.get("requestId")
+        self.request_id = payload.get("request_id") or payload.get("requestId")
+        #: Machine-readable error code, e.g. ``"forbidden"`` or ``"not_found"``.
+        self.error_code: Optional[str] = payload.get("error")
+        #: Why the request was refused, e.g. ``"api_key_scope_missing"``.
+        self.reason: Optional[str] = payload.get("reason")
+        #: The API key permission this route needs, when a key lacks it.
+        self.required_scope: Optional[str] = payload.get("required_scope")
+        message = f"Dralvia API error {status_code}"
+        if self.required_scope:
+            message += f": API key is missing the `{self.required_scope}` permission"
+        elif self.error_code:
+            message += f": {self.error_code}"
+        super().__init__(message)
 
 
 class DralviaNotImplementedError(DralviaError):
@@ -161,7 +179,74 @@ class DralviaClient:
         files = {"file": (file_name, file_bytes, "application/zip")}
         return self._request("POST", f"{API_VERSION_PREFIX}/repo/scan/upload", data=payload or None, files=files)
 
+    # --- Repository scan results ---------------------------------------------
+
+    def get_repo_scan(self, scan_id: Any) -> Dict[str, Any]:
+        """Fetch a repository scan: status, risk, findings, and summaries."""
+        return self._request("GET", f"{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}")
+
+    def wait_for_repo_scan(
+        self,
+        scan_id: Any,
+        *,
+        timeout: float = DEFAULT_REPO_SCAN_WAIT_SECONDS,
+        poll_interval: float = DEFAULT_REPO_SCAN_POLL_SECONDS,
+    ) -> Dict[str, Any]:
+        """Poll a repository scan until it finishes and return the final result.
+
+        Returns the scan once its ``status`` is terminal (``completed``,
+        ``done``, ``failed`` or ``dead_letter``); check ``status`` before
+        trusting the result. Raises :class:`DralviaTimeoutError` if the scan is
+        still running after ``timeout`` seconds.
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            scan = self.get_repo_scan(scan_id)
+            if str(scan.get("status") or "").lower() in REPO_SCAN_TERMINAL_STATUSES:
+                return scan
+            if time.monotonic() + poll_interval > deadline:
+                raise DralviaTimeoutError(
+                    f"{self.base_url}{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}", timeout
+                )
+            time.sleep(poll_interval)
+
+    def get_repo_scan_ci_gate(self, scan_id: Any, profile: Optional[str] = None) -> Dict[str, Any]:
+        """CI gate decision for a scan (``pass`` / ``review`` / ``fail``).
+
+        ``profile`` optionally evaluates the scan under another policy, such as
+        ``advisory``, ``balanced`` or ``fail_closed``.
+        """
+        params = {"profile": profile} if profile else None
+        return self._request("GET", f"{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}/ci-gate", params=params)
+
+    def export_repo_scan(self, scan_id: Any, format: str = "json") -> Dict[str, Any]:
+        """Export a scan, e.g. ``format="sarif"`` for code-scanning upload.
+
+        An unsupported format raises :class:`DralviaApiError` whose payload
+        lists the ``supported`` formats.
+        """
+        return self._request(
+            "GET", f"{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}/export", params={"format": format}
+        )
+
+    def get_repo_scan_export_manifest(self, scan_id: Any) -> Dict[str, Any]:
+        """Signed manifest listing every export artifact of a scan and its digest."""
+        return self._request("GET", f"{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}/export/manifest")
+
+    def get_repo_scan_triage(self, scan_id: Any) -> Dict[str, Any]:
+        """Review decisions and suppressions recorded against a scan's findings."""
+        return self._request("GET", f"{API_VERSION_PREFIX}/repo/scan/{_path_id(scan_id)}/triage")
+
+    # --- Usage ----------------------------------------------------------------
+
+    def get_usage_summary(self) -> Dict[str, Any]:
+        """Scan counts, plan limits, and the current billing period for the workspace."""
+        return self._request("GET", f"{API_VERSION_PREFIX}/usage/summary")
+
     # --- Webhooks -----------------------------------------------------------
+
+    # Webhook management needs an API key created or rotated with the
+    # ``webhooks`` permission; other keys get DralviaApiError 403.
 
     def list_webhooks(self) -> Dict[str, Any]:
         """List the workspace's registered webhooks."""
@@ -173,11 +258,11 @@ class DralviaClient:
 
     def delete_webhook(self, webhook_id: Any) -> Dict[str, Any]:
         """Delete a webhook by id."""
-        return self._request("DELETE", f"{API_VERSION_PREFIX}/pro/webhooks/{webhook_id}")
+        return self._request("DELETE", f"{API_VERSION_PREFIX}/pro/webhooks/{_path_id(webhook_id)}")
 
     def test_webhook(self, webhook_id: Any) -> Dict[str, Any]:
         """Send a test delivery to a webhook by id."""
-        return self._request("POST", f"{API_VERSION_PREFIX}/pro/webhooks/{webhook_id}/test")
+        return self._request("POST", f"{API_VERSION_PREFIX}/pro/webhooks/{_path_id(webhook_id)}/test")
 
     # --- Internals ----------------------------------------------------------
 
@@ -194,6 +279,7 @@ class DralviaClient:
         json: Any = None,
         data: Any = None,
         files: Any = None,
+        params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         request_url = f"{self.base_url}{path}"
         try:
@@ -203,6 +289,7 @@ class DralviaClient:
                 json=json,
                 data=data,
                 files=files,
+                params=params,
                 headers=self._headers(),
                 timeout=self.timeout,
             )
@@ -211,6 +298,11 @@ class DralviaClient:
         if resp.status_code >= 400:
             raise DralviaApiError(resp.status_code, _safe_json(resp), request_url)
         return _safe_json(resp)
+
+
+def _path_id(value: Any) -> str:
+    """Encode an id as a single path segment so it cannot change the route."""
+    return quote(str(value), safe="")
 
 
 def _safe_json(resp: requests.Response) -> Dict[str, Any]:

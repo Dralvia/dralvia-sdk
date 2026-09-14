@@ -199,3 +199,97 @@ test("agent.checkContent posts content to the screen endpoint", async () => {
   assert.equal(seen.url, "https://api.example/agent/check-content");
   assert.deepEqual(seen.body, { content: "ignore previous instructions" });
 });
+
+// --- repository scan results and usage -------------------------------------
+
+test("repo scan read helpers build expected GET requests", async () => {
+  const seen = [];
+  global.fetch = async (url, opts) => {
+    seen.push([opts.method, url, opts.body]);
+    return okResponse(200, { status: "completed" });
+  };
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  await client.getRepoScan(24);
+  await client.getRepoScanCiGate(24);
+  await client.getRepoScanCiGate(24, { profile: "fail_closed" });
+  await client.exportRepoScan(24);
+  await client.exportRepoScan(24, { format: "sarif" });
+  await client.getRepoScanExportManifest(24);
+  await client.getRepoScanTriage(24);
+  await client.getUsageSummary();
+  assert.deepEqual(seen, [
+    ["GET", "https://api.example/v1/repo/scan/24", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/ci-gate", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/ci-gate?profile=fail_closed", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/export?format=json", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/export?format=sarif", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/export/manifest", undefined],
+    ["GET", "https://api.example/v1/repo/scan/24/triage", undefined],
+    ["GET", "https://api.example/v1/usage/summary", undefined],
+  ]);
+});
+
+test("path ids are encoded as a single segment", async () => {
+  const seen = [];
+  global.fetch = async (url) => {
+    seen.push(url);
+    return okResponse(200, {});
+  };
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  await client.getRepoScan("24/../../admin");
+  assert.deepEqual(seen, ["https://api.example/v1/repo/scan/24%2F..%2F..%2Fadmin"]);
+});
+
+test("waitForRepoScan polls until a terminal status", async () => {
+  const statuses = ["queued", "running", "completed"];
+  let calls = 0;
+  global.fetch = async () => okResponse(200, { id: 24, status: statuses[calls++] });
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  const result = await client.waitForRepoScan(24, { pollIntervalMs: 1 });
+  assert.equal(result.status, "completed");
+  assert.equal(calls, 3);
+});
+
+test("waitForRepoScan returns a failed scan instead of waiting forever", async () => {
+  let calls = 0;
+  global.fetch = async () => {
+    calls += 1;
+    return okResponse(200, { id: 24, status: "failed" });
+  };
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  const result = await client.waitForRepoScan(24, { pollIntervalMs: 1 });
+  assert.equal(result.status, "failed");
+  assert.equal(calls, 1);
+});
+
+test("waitForRepoScan throws DralviaTimeoutError when the scan keeps running", async () => {
+  global.fetch = async () => okResponse(200, { id: 24, status: "running" });
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  await assert.rejects(
+    () => client.waitForRepoScan(24, { timeoutMs: 30, pollIntervalMs: 10 }),
+    (err) =>
+      err instanceof DralviaTimeoutError &&
+      err.timeoutMs === 30 &&
+      err.requestUrl === "https://api.example/v1/repo/scan/24"
+  );
+});
+
+test("a missing API key permission names the permission", async () => {
+  global.fetch = async () =>
+    okResponse(403, {
+      error: "forbidden",
+      reason: "api_key_scope_missing",
+      required_scope: "webhooks",
+    });
+  const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example" });
+  await assert.rejects(
+    () => client.listWebhooks(),
+    (err) =>
+      err instanceof DralviaApiError &&
+      err.status === 403 &&
+      err.code === "forbidden" &&
+      err.reason === "api_key_scope_missing" &&
+      err.requiredScope === "webhooks" &&
+      /webhooks/.test(err.message)
+  );
+});

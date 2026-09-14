@@ -42,10 +42,13 @@ the public API.
 
 - URL scan, unified scan, Web Access Protection (SWG) evaluation.
 - Email-protection scoring.
-- Repository archive scan.
-- Webhook list / create / test / delete.
-- Reserved `agent` namespace (`checkAction` / `checkContent`) for a future
-  release. It throws today; it does not call a nonexistent endpoint.
+- Repository archive scan, wait for completion, CI gate decision, SARIF / JSON
+  export, signed export manifest, triage decisions.
+- Workspace usage and plan limits.
+- Webhook list / create / test / delete (needs a key with the `webhooks`
+  permission).
+- AI-agent guardrails: `agent.checkAction` / `agent.checkContent`
+  (`agent.check_action` / `agent.check_content` in Python).
 
 ## Project files
 

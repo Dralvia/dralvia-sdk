@@ -6,7 +6,26 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Repository scan results: `getRepoScan` / `get_repo_scan`,
+  `waitForRepoScan` / `wait_for_repo_scan` (polls until a terminal status,
+  raises a timeout error otherwise), `getRepoScanCiGate` /
+  `get_repo_scan_ci_gate` (optional policy `profile`), `exportRepoScan` /
+  `export_repo_scan` (`json`, `sarif`, and the other formats the API lists),
+  `getRepoScanExportManifest` / `get_repo_scan_export_manifest`, and
+  `getRepoScanTriage` / `get_repo_scan_triage`.
+- `getUsageSummary` / `get_usage_summary`.
+- `DralviaApiError` exposes `code` / `error_code`, `reason`, and
+  `requiredScope` / `required_scope`; a missing API key permission is named in
+  the error message.
+
+### Changed
+- The repository scan examples run the full CI flow: upload, wait, gate,
+  optional SARIF file, non-zero exit when the gate blocks.
+- The Python client URL-encodes ids in request paths, as the JavaScript client
+  already did.
+- Ruff's rule set is pinned in `pyproject.toml`, so a newer ruff release does
+  not change what CI enforces.
 
 ## [0.1.0] - 2026-07-02
 
