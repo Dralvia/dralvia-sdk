@@ -35,7 +35,7 @@ instead):
 - Never commit an API key. The SDK reads `DRALVIA_API_KEY` from the environment
   so keys can live in a secret manager.
 - API keys grant full programmatic access to a workspace. Rotate a key
-  immediately from the workspace console (`https://dralvia.tech/#/api-keys`) if
+  immediately from the workspace console ([https://dralvia.tech/#/api-keys](https://dralvia.tech/#/api-keys)) if
   it is ever exposed.
 - The SDK sends the key only to the configured base URL over HTTPS. Do not point
   `DRALVIA_BASE_URL` at an untrusted host.

@@ -31,7 +31,7 @@ __all__ = [
     "__version__",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant"
 DEFAULT_TIMEOUT_SECONDS = 15.0

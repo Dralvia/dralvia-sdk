@@ -1,6 +1,6 @@
 {
   "name": "@dralvia/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official lightweight JavaScript client for the Dralvia security API.",
   "homepage": "https://dralvia.tech/docs/sdks/javascript",
   "repository": {

@@ -35,10 +35,7 @@ are managed in the Dralvia app and are not exposed here. See the
 
 ## Package status
 
-The source for `dralvia-sdk` is public on GitHub.
-The package is not published on the public PyPI index yet; until it is, install
-it from source (see Install). `pip install dralvia-sdk` will start working once
-the package is published.
+`dralvia-sdk` is on the public PyPI index, and its source is public on GitHub.
 
 ## Requirements
 
@@ -47,9 +44,9 @@ the package is published.
 
 ## Get an API key
 
-1. Sign in to Dralvia at `https://dralvia.tech`.
+1. Sign in to Dralvia at [https://dralvia.tech](https://dralvia.tech).
 2. Open the API Keys page in the workspace console:
-   `https://dralvia.tech/#/api-keys`.
+   [https://dralvia.tech/#/api-keys](https://dralvia.tech/#/api-keys).
 3. Generate a key yourself and copy it. It grants programmatic access to your
    workspace, so keep it in a secret manager, never in source control.
 4. Export it for the SDK to pick up automatically:
@@ -73,11 +70,10 @@ call needs gets `DralviaApiError` with `status_code == 403` and
 python -m venv .venv
 . .venv/bin/activate
 
-# From source: clone the repo, then from the python/ folder:
-python -m pip install -e .
-
-# Or, once published, from the index:
 python -m pip install dralvia-sdk
+
+# Or from source: clone the repo, then from the python/ folder:
+python -m pip install -e .
 ```
 
 ## Quick start

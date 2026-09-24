@@ -18,7 +18,7 @@ the public API.
 
 ## Get started in under 10 minutes
 
-1. Create a workspace API key in the console (`https://dralvia.tech/#/api-keys`).
+1. Create a workspace API key in the console ([https://dralvia.tech/#/api-keys](https://dralvia.tech/#/api-keys)).
 2. Export it: `export DRALVIA_API_KEY=...`
 3. Install the SDK for your language (see each package's README).
 4. Run your first scan:

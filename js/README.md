@@ -37,10 +37,8 @@ are managed in the Dralvia app and are not exposed here. See the
 
 ## Package status
 
-The source for `@dralvia/sdk` is public on GitHub.
-The package is not published on the public npm registry yet; until it is,
-install it from source (see Install). `npm install @dralvia/sdk` will start
-working once the package is published.
+`@dralvia/sdk` is on the public npm registry, and its source is public on
+GitHub.
 
 ## Requirements
 
@@ -49,9 +47,9 @@ working once the package is published.
 
 ## Get an API key
 
-1. Sign in to Dralvia at `https://dralvia.tech`.
+1. Sign in to Dralvia at [https://dralvia.tech](https://dralvia.tech).
 2. Open the API Keys page in the workspace console:
-   `https://dralvia.tech/#/api-keys`.
+   [https://dralvia.tech/#/api-keys](https://dralvia.tech/#/api-keys).
 3. Generate a key yourself and copy it. It grants programmatic access to your
    workspace, so keep it in a secret manager, never in source control.
 4. Export it for the SDK to pick up automatically:
@@ -66,11 +64,10 @@ construct a client without one.
 ## Install
 
 ```bash
-# From source: clone the repo, then from the js/ folder:
-npm install
-
-# Or, once published, from the registry:
 npm install @dralvia/sdk
+
+# Or from source: clone the repo, then from the js/ folder:
+npm install
 ```
 
 ## Quick start

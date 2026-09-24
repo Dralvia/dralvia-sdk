@@ -6,6 +6,20 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
+Both packages are on the public registries: `npm install @dralvia/sdk` and
+`pip install dralvia-sdk`.
+
+Note on 0.1.0: the 0.1.0 uploaded to npm and PyPI on 2026-09-24 was built from
+the repository as it stood that day, so it already contains the additions
+below. 0.2.0 is the same code with registry install instructions in the READMEs
+and the version that matches this changelog.
+
+### Changed
+- The READMEs install from npm and PyPI; installing from source remains an
+  option.
+
 ### Added
 - Repository scan results: `getRepoScan` / `get_repo_scan`,
   `waitForRepoScan` / `wait_for_repo_scan` (polls until a terminal status,
