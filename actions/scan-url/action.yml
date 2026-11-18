@@ -1,0 +1,62 @@
+name: Dralvia scan URL
+description: Scan a URL or domain with Dralvia and fail the job when the verdict or a flag severity is not acceptable.
+author: Dralvia
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  target:
+    description: URL or domain to scan.
+    required: true
+  api-key:
+    description: Workspace API key. Pass it from a repository secret.
+    required: true
+  fail-on:
+    description: Comma-separated verdicts that fail the job (Safe, Caution, Avoid).
+    required: false
+    default: Avoid
+  fail-on-severity:
+    description: Also fail when any flag has this severity or higher (info, low, medium, high, critical). Empty disables it.
+    required: false
+    default: ""
+  force-scan:
+    description: Set to true to run a fresh scan instead of reusing a recent result.
+    required: false
+    default: "false"
+  output:
+    description: File the full JSON result is written to.
+    required: false
+    default: dralvia-scan-result.json
+  sdk-version:
+    description: Exact dralvia-sdk version to install from PyPI.
+    required: false
+    default: "0.3.0"
+
+outputs:
+  result-file:
+    description: Path of the JSON result.
+    value: ${{ inputs.output }}
+
+runs:
+  using: composite
+  steps:
+    - name: Scan with Dralvia
+      shell: bash
+      env:
+        DRALVIA_API_KEY: ${{ inputs.api-key }}
+        TARGET: ${{ inputs.target }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        FAIL_ON_SEVERITY: ${{ inputs.fail-on-severity }}
+        FORCE_SCAN: ${{ inputs.force-scan }}
+        OUTPUT: ${{ inputs.output }}
+        SDK_VERSION: ${{ inputs.sdk-version }}
+      run: |
+        set -euo pipefail
+        venv="$RUNNER_TEMP/dralvia-scan-url"
+        python3 -m venv "$venv"
+        "$venv/bin/python" -m pip install --quiet --disable-pip-version-check "dralvia-sdk==$SDK_VERSION"
+        args=("$TARGET" --fail-on "$FAIL_ON" --output "$OUTPUT")
+        if [ -n "$FAIL_ON_SEVERITY" ]; then args+=(--fail-on-severity "$FAIL_ON_SEVERITY"); fi
+        if [ "$FORCE_SCAN" = "true" ]; then args+=(--force); fi
+        "$venv/bin/dralvia-scan-url" "${args[@]}"

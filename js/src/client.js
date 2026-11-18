@@ -321,15 +321,13 @@ class DralviaClient {
   // --- Internals ----------------------------------------------------------
 
   _buildHeaders(includeJson = true) {
-    const headers = {
-      "X-API-KEY": this.apiKey,
-      Accept: "application/json",
-    };
+    // The documented header. With a bearer session, Authorization carries the
+    // session, so the key travels in the legacy X-API-KEY header instead.
+    const headers = this.bearerToken
+      ? { Authorization: `Bearer ${this.bearerToken}`, "X-API-KEY": this.apiKey, Accept: "application/json" }
+      : { Authorization: `Api-Key ${this.apiKey}`, Accept: "application/json" };
     if (includeJson) {
       headers["Content-Type"] = "application/json";
-    }
-    if (this.bearerToken) {
-      headers.Authorization = `Bearer ${this.bearerToken}`;
     }
     return headers;
   }

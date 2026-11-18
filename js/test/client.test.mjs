@@ -52,10 +52,10 @@ test("scanUrl sends payload, auth headers, and returns JSON", async () => {
     called = true;
     assert.equal(url, "https://api.example/v1/scan");
     assert.equal(opts.method, "POST");
-    assert.equal(opts.headers["X-API-KEY"], "abc");
+    assert.equal(opts.headers.Authorization, "Api-Key abc");
+    assert.equal(opts.headers["X-API-KEY"], undefined);
     assert.equal(opts.headers["Accept"], "application/json");
     assert.equal(opts.headers["Content-Type"], "application/json");
-    assert.equal(opts.headers.Authorization, undefined);
     assert.match(opts.body, /example\.com/);
     return okResponse(200, { score: 5 });
   };
@@ -68,6 +68,7 @@ test("scanUrl sends payload, auth headers, and returns JSON", async () => {
 test("bearer token adds Authorization header", async () => {
   global.fetch = async (_url, opts) => {
     assert.equal(opts.headers.Authorization, "Bearer tok");
+    assert.equal(opts.headers["X-API-KEY"], "abc");
     return okResponse(200, {});
   };
   const client = new DralviaClient({ apiKey: "abc", baseUrl: "https://api.example", bearerToken: "tok" });
@@ -102,7 +103,7 @@ test("scanRepoArchive sends multipart body", async () => {
   global.fetch = async (url, opts) => {
     assert.equal(url, "https://api.example/v1/repo/scan/upload");
     assert.equal(opts.method, "POST");
-    assert.equal(opts.headers["X-API-KEY"], "abc");
+    assert.equal(opts.headers.Authorization, "Api-Key abc");
     assert.equal(opts.headers["Content-Type"], undefined);
     assert.ok(opts.body instanceof FormData);
     return okResponse(201, { id: "repo-1", risk_level: "Caution" });

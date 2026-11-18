@@ -1,0 +1,67 @@
+# Publishes a tagged release (vX.Y.Z) to PyPI and npm.
+#
+# PyPI uses Trusted Publishing: no stored token, and every file gets a signed
+# Sigstore attestation that PyPI shows and `pypi-attestations` can verify.
+# npm publishes with provenance, which links the package to this workflow run.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  pypi:
+    name: Publish dralvia-sdk to PyPI
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check the tag matches the package version
+        run: |
+          version=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$GITHUB_REF_NAME"
+      - name: Test and build
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" twine
+          pytest tests
+          python -m build
+          python -m twine check dist/*
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+          attestations: true
+
+  npm:
+    name: Publish @dralvia/sdk to npm
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+      - name: Check the tag matches the package version
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      - run: npm ci
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

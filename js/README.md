@@ -58,8 +58,9 @@ GitHub.
    export DRALVIA_API_KEY="your-key"
    ```
 
-The SDK sends the key as the `X-API-KEY` header on every request and refuses to
-construct a client without one.
+The SDK sends the key as `Authorization: Api-Key <key>` on every request (the
+legacy `X-API-KEY` header is used only when you also pass a bearer token) and
+refuses to construct a client without one.
 
 ## Install
 

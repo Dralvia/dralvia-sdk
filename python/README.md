@@ -55,8 +55,9 @@ are managed in the Dralvia app and are not exposed here. See the
    export DRALVIA_API_KEY="your-key"
    ```
 
-The SDK sends the key as the `X-API-KEY` header on every request and refuses to
-construct a client without one.
+The SDK sends the key as `Authorization: Api-Key <key>` on every request (the
+legacy `X-API-KEY` header is used only when you also pass a bearer token) and
+refuses to construct a client without one.
 
 Every key can scan and read its own workspace's results and usage. Webhook
 management needs the **Manage webhooks** permission: tick it under *Additional
@@ -191,3 +192,27 @@ pytest tests
 - Get / rotate an API key: https://dralvia.tech/#/api-keys
 - Developer support: https://dralvia.tech/docs/tenant/developer
 - Report a security issue: see [SECURITY.md](../SECURITY.md)
+
+## Command line: gate a CI step on a scan
+
+Installing the package also installs `dralvia-scan-url`:
+
+```bash
+export DRALVIA_API_KEY="your-key"
+dralvia-scan-url example.com --fail-on Avoid --fail-on-severity high --output scan.json
+```
+
+It exits `0` when the result is acceptable, `3` when the verdict is in
+`--fail-on` or a flag is at or above `--fail-on-severity`, and `2` when the
+scan could not run. On GitHub, use the
+[`scan-url` action](../actions/scan-url/README.md), pinned by commit SHA.
+
+## Verify a release
+
+Releases are published from this repository's release workflow with PyPI
+Trusted Publishing, so every file on PyPI carries a signed Sigstore
+attestation tied to that workflow. Pin an exact version (`dralvia-sdk==0.3.0`)
+and check on the package's PyPI page that each file shows a verified
+attestation from `Dralvia/dralvia-sdk`, or verify it offline with the
+`pypi-attestations` tool.
+

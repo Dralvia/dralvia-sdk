@@ -67,10 +67,11 @@ def test_scan_url_builds_expected_request():
     _, kwargs = session.request.call_args
     assert kwargs["url"] == "https://api.example/v1/scan"
     assert kwargs["json"]["url"] == "https://example.com"
-    assert kwargs["headers"]["X-API-KEY"] == "abc"
+    # The documented header, not the legacy X-API-KEY.
+    assert kwargs["headers"]["Authorization"] == "Api-Key abc"
+    assert "X-API-KEY" not in kwargs["headers"]
     assert kwargs["headers"]["Accept"] == "application/json"
     assert kwargs["timeout"] == 15.0
-    assert "Authorization" not in kwargs["headers"]
 
 
 def test_bearer_token_sets_authorization_header():
@@ -80,6 +81,8 @@ def test_bearer_token_sets_authorization_header():
     client.scan_url("https://example.com")
     _, kwargs = session.request.call_args
     assert kwargs["headers"]["Authorization"] == "Bearer tok"
+    # Authorization carries the session, so the key travels in the legacy header.
+    assert kwargs["headers"]["X-API-KEY"] == "abc"
 
 
 def test_unified_scan_posts_expected_payload():

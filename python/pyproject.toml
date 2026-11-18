@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dralvia-sdk"
-version = "0.2.0"
+version = "0.3.0"
 description = "Official lightweight Python client for the Dralvia security API."
 authors = [{ name = "Dralvia" }]
 readme = "README.md"
@@ -25,6 +25,9 @@ classifiers = [
 dependencies = [
     "requests>=2.31"
 ]
+
+[project.scripts]
+dralvia-scan-url = "dralvia_sdk.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.1", "ruff>=0.4", "build>=1.2"]

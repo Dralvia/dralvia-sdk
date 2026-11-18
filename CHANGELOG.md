@@ -6,6 +6,23 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-19
+
+### Changed
+- Both SDKs send the documented `Authorization: Api-Key <key>` header instead
+  of the legacy `X-API-KEY`. With a bearer token, `Authorization` carries the
+  token and the key is sent as `X-API-KEY`, as before. The API accepts both, so
+  no change is needed on your side.
+
+### Added
+- Python: `dralvia-scan-url` command for CI. It fails with exit code `3` on a
+  blocked verdict (`--fail-on`) or flag severity (`--fail-on-severity`) and
+  with `2` when the scan could not run.
+- `actions/scan-url`: a GitHub Action that runs the same check. Pin it by
+  commit SHA.
+- Release workflow: PyPI releases use Trusted Publishing with signed Sigstore
+  attestations, and npm releases are published with provenance.
+
 ## [0.2.0] - 2026-09-24
 
 Both packages are on the public registries: `npm install @dralvia/sdk` and

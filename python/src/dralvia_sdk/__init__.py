@@ -31,7 +31,7 @@ __all__ = [
     "__version__",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 DEFAULT_BASE_URL = "https://dralvia.tech/api/tenant"
 DEFAULT_TIMEOUT_SECONDS = 15.0
@@ -267,10 +267,15 @@ class DralviaClient:
     # --- Internals ----------------------------------------------------------
 
     def _headers(self) -> Dict[str, str]:
-        headers = {"X-API-KEY": self.api_key, "Accept": "application/json"}
+        # The documented header. With a bearer session, Authorization carries the
+        # session, so the key travels in the legacy X-API-KEY header instead.
         if self.bearer_token:
-            headers["Authorization"] = f"Bearer {self.bearer_token}"
-        return headers
+            return {
+                "Authorization": f"Bearer {self.bearer_token}",
+                "X-API-KEY": self.api_key,
+                "Accept": "application/json",
+            }
+        return {"Authorization": f"Api-Key {self.api_key}", "Accept": "application/json"}
 
     def _request(
         self,
