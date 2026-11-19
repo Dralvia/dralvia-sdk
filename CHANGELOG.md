@@ -22,7 +22,9 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
   commit SHA.
 - Release workflow: PyPI and npm releases use Trusted Publishing, so no
   publishing token is stored. PyPI files carry signed Sigstore attestations and
-  npm releases carry provenance.
+  npm releases carry provenance. The 0.3.0 packages themselves were uploaded
+  directly, so they do not carry these. Each file's SHA-256 is listed on PyPI
+  and npm. The workflow skips a version that is already published.
 
 ## [0.2.0] - 2026-09-24
 

@@ -39,10 +39,12 @@ jobs:
           pytest tests
           python -m build
           python -m twine check dist/*
+      # A version that was uploaded by hand (0.3.0 was) is left as it is.
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python/dist
           attestations: true
+          skip-existing: true
 
   npm:
     name: Publish @dralvia/sdk to npm
@@ -65,4 +67,11 @@ jobs:
       - run: npm install --global npm@11.21.0
       - run: npm ci
       - run: npm test
-      - run: npm publish --provenance --access public
+      - name: Publish unless this version is already on npm
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "@dralvia/sdk@$version" version >/dev/null 2>&1; then
+            echo "@dralvia/sdk@$version is already on npm, nothing to publish."
+          else
+            npm publish --provenance --access public
+          fi
