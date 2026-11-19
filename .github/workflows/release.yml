@@ -1,8 +1,9 @@
 # Publishes a tagged release (vX.Y.Z) to PyPI and npm.
 #
-# PyPI uses Trusted Publishing: no stored token, and every file gets a signed
-# Sigstore attestation that PyPI shows and `pypi-attestations` can verify.
-# npm publishes with provenance, which links the package to this workflow run.
+# Both registries use Trusted Publishing: GitHub proves to PyPI and npm that the
+# upload comes from this workflow, so no publishing token is stored anywhere.
+# PyPI files get a signed Sigstore attestation that `pypi-attestations` can
+# verify, and npm attaches provenance that links the package to this run.
 name: Release
 
 on:
@@ -60,8 +61,8 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: Check the tag matches the package version
         run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+      # Trusted Publishing needs npm 11.5.1 or later; Node 20 ships npm 10.
+      - run: npm install --global npm@11.21.0
       - run: npm ci
       - run: npm test
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

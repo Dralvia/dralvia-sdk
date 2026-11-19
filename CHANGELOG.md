@@ -20,8 +20,9 @@ follows [Semantic Versioning](https://semver.org/). The JavaScript
   with `2` when the scan could not run.
 - `actions/scan-url`: a GitHub Action that runs the same check. Pin it by
   commit SHA.
-- Release workflow: PyPI releases use Trusted Publishing with signed Sigstore
-  attestations, and npm releases are published with provenance.
+- Release workflow: PyPI and npm releases use Trusted Publishing, so no
+  publishing token is stored. PyPI files carry signed Sigstore attestations and
+  npm releases carry provenance.
 
 ## [0.2.0] - 2026-09-24
 
